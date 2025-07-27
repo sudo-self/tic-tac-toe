@@ -14,34 +14,37 @@
             --draw: #f59e0b;
             --text: #e2e8f0;
             --subtle: #64748b;
-            --cell-size: min(25vw, 120px);
+            --cell-size: min(22vw, 90px); /* smaller cells */
             --transition: all .3s cubic-bezier(.4,0,.2,1);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
 
         body {
-            display: grid;
-            place-content: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: var(--text);
-            padding: 2rem;
+            padding: 1rem;
+            overflow: hidden; /* remove scrollbars */
         }
 
         h1 {
-            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-size: clamp(1.2rem, 3.5vw, 2rem);
             font-weight: 700;
             text-align: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             letter-spacing: .05em;
         }
 
         #status {
             text-align: center;
-            font-size: 1.125rem;
+            font-size: 1rem;
             min-height: 1.5em;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             transition: var(--transition);
         }
 
@@ -49,14 +52,14 @@
             display: grid;
             grid-template-columns: repeat(3, var(--cell-size));
             grid-template-rows: repeat(3, var(--cell-size));
-            gap: 8px;
-            margin: 0 auto 2rem;
+            gap: 6px;
+            margin: 0 auto 1rem;
             position: relative;
         }
 
         .cell {
             background: var(--secondary);
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -74,34 +77,32 @@
         #score {
             display: flex;
             justify-content: space-evenly;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            font-size: 1rem;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
         }
 
         .score-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: .25rem;
+            gap: .2rem;
             color: var(--subtle);
         }
 
         .score-item span:last-child {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--text);
         }
 
         button {
-            display: block;
-            margin: 0 auto;
-            padding: .75rem 2rem;
+            padding: .5rem 1.5rem;
             border: none;
             border-radius: 999px;
             background: var(--accent);
             color: #fff;
-            font-size: 1rem;
+            font-size: 0.9rem;
             cursor: pointer;
             transition: var(--transition);
         }
@@ -119,11 +120,13 @@
 
         .win-line.show { opacity: 1; }
 
-        @media (max-width: 400px) {
-            #board {
-                grid-template-columns: repeat(3, 80px);
-                grid-template-rows: repeat(3, 80px);
+        @media (max-width: 500px) {
+            :root {
+                --cell-size: min(25vw, 70px); /* make smaller on tiny screens */
             }
+            h1 { font-size: 1.3rem; }
+            #status { font-size: 0.9rem; }
+            button { font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -172,12 +175,11 @@
         let scores = { player: 0, draw: 0, bot: 0 };
 
         const winPatterns = [
-            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-            [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
-            [0, 4, 8], [2, 4, 6]             // diags
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
         ];
 
-        // Initialize
         cells.forEach(c => c.addEventListener('click', handlePlayerMove));
 
         function handlePlayerMove(e) {
@@ -194,58 +196,19 @@
         function makeMove(idx, player) {
             board[idx] = player;
             cells[idx].textContent = player === 'x' ? 'X' : 'O';
-            cells[idx].classList.add(player);
-            cells[idx].classList.add('disabled');
+            cells[idx].classList.add(player, 'disabled');
 
             const winner = checkWinner();
             if (winner) endGame(winner);
             else if (board.every(Boolean)) endGame('draw');
-            else {
-                if (player === 'x') statusEl.textContent = 'Your turn (X)';
-                else statusEl.textContent = 'Your turn (X)';
-            }
+            else statusEl.textContent = 'Your turn (X)';
         }
 
-        function checkWinner() {
-            for (const [a, b, c] of winPatterns) {
-                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                    drawWinLine(a, b, c);
-                    return board[a];
-                }
+        function checkWinner(b = board) {
+            for (const [a, bIdx, c] of winPatterns) {
+                if (b[a] && b[a] === b[bIdx] && b[a] === b[c]) return b[a];
             }
             return null;
-        }
-
-        function drawWinLine(a, b, c) {
-            const coords = [a, b, c].map(i => cells[i].getBoundingClientRect());
-            const boardRect = document.getElementById('board').getBoundingClientRect();
-            const xs = coords.map(r => r.left + r.width / 2 - boardRect.left);
-            const ys = coords.map(r => r.top + r.height / 2 - boardRect.top);
-
-            const isVertical = a % 3 === b % 3;
-            const isDiagonal = [0, 2].includes(a) && [8, 6].includes(c);
-
-            if (isVertical) {
-                winLine.style.width = '8px';
-                winLine.style.height = 'calc(var(--cell-size) * 3 + 16px)';
-                winLine.style.left = `${xs[0] - 4}px`;
-                winLine.style.top = '0';
-            } else if ([0, 3, 6].includes(a) && [2, 5, 8].includes(c)) {
-                winLine.style.width = 'calc(var(--cell-size) * 3 + 16px)';
-                winLine.style.height = '8px';
-                winLine.style.left = '0';
-                winLine.style.top = `${ys[0] - 4}px`;
-            } else if (isDiagonal) {
-                const length = Math.hypot(xs[2] - xs[0], ys[2] - ys[0]);
-                const angle = Math.atan2(ys[2] - ys[0], xs[2] - xs[0]) * 180 / Math.PI;
-                winLine.style.width = `${length}px`;
-                winLine.style.height = '8px';
-                winLine.style.left = `${xs[0]}px`;
-                winLine.style.top = `${ys[0]}px`;
-                winLine.style.transformOrigin = '0 50%';
-                winLine.style.transform = `rotate(${angle}deg)`;
-            }
-            winLine.classList.add('show');
         }
 
         function endGame(result) {
@@ -257,16 +220,14 @@
                 statusEl.textContent = 'It\'s a draw!';
                 scores.draw++;
                 document.getElementById('drawScore').textContent = scores.draw;
+            } else if (result === 'x') {
+                statusEl.textContent = 'You win!';
+                scores.player++;
+                document.getElementById('playerScore').textContent = scores.player;
             } else {
-                if (result === 'x') {
-                    statusEl.textContent = 'You win!';
-                    scores.player++;
-                    document.getElementById('playerScore').textContent = scores.player;
-                } else {
-                    statusEl.textContent = 'Bot wins!';
-                    scores.bot++;
-                    document.getElementById('botScore').textContent = scores.bot;
-                }
+                statusEl.textContent = 'Bot wins!';
+                scores.bot++;
+                document.getElementById('botScore').textContent = scores.bot;
             }
         }
 
@@ -288,54 +249,25 @@
                 move.index = availSpots[i];
                 newBoard[availSpots[i]] = player;
 
-                if (player === 'o') {
-                    const result = minimax(newBoard, 'x');
-                    move.score = result.score;
-                } else {
-                    const result = minimax(newBoard, 'o');
-                    move.score = result.score;
-                }
+                move.score = player === 'o'
+                    ? minimax(newBoard, 'x').score
+                    : minimax(newBoard, 'o').score;
 
                 newBoard[availSpots[i]] = null;
                 moves.push(move);
             }
 
-            let bestMove;
-            if (player === 'o') {
-                let bestScore = -Infinity;
-                for (let i = 0; i < moves.length; i++) {
-                    if (moves[i].score > bestScore) {
-                        bestScore = moves[i].score;
-                        bestMove = i;
-                    }
-                }
-            } else {
-                let bestScore = Infinity;
-                for (let i = 0; i < moves.length; i++) {
-                    if (moves[i].score < bestScore) {
-                        bestScore = moves[i].score;
-                        bestMove = i;
-                    }
-                }
-            }
-
-            return moves[bestMove];
-        }
-
-        function checkWinner(b = board) {
-            for (const [a, bIdx, c] of winPatterns) {
-                if (b[a] && b[a] === b[bIdx] && b[a] === b[c]) return b[a];
-            }
-            return null;
+            return moves.reduce((best, m, i) => {
+                if (player === 'o' && m.score > best.score) return { ...m, index: m.index };
+                if (player === 'x' && m.score < best.score) return { ...m, index: m.index };
+                return best;
+            }, { score: player === 'o' ? -Infinity : Infinity });
         }
 
         function restartGame() {
             board = Array(9).fill(null);
             gameOver = false;
-            cells.forEach(c => {
-                c.textContent = '';
-                c.className = 'cell';
-            });
+            cells.forEach(c => { c.textContent = ''; c.className = 'cell'; });
             winLine.className = 'win-line';
             statusEl.textContent = 'Your turn (X)';
         }
